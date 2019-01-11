@@ -7,21 +7,24 @@ import random, pygame, sys
 from pygame.locals import *
 
 FPS = 15
-WINDOWWIDTH = 640
-WINDOWHEIGHT = 480
+WINDOWWIDTH  = 640 + 320
+WINDOWHEIGHT = 480 + 240
 CELLSIZE = 20
 assert WINDOWWIDTH % CELLSIZE == 0, "Window width must be a multiple of cell size."
 assert WINDOWHEIGHT % CELLSIZE == 0, "Window height must be a multiple of cell size."
 CELLWIDTH = int(WINDOWWIDTH / CELLSIZE)
 CELLHEIGHT = int(WINDOWHEIGHT / CELLSIZE)
+MAXNUMAPPLES = 4
 
-#             R    G    B
-WHITE     = (255, 255, 255)
-BLACK     = (  0,   0,   0)
-RED       = (255,   0,   0)
-GREEN     = (  0, 255,   0)
-DARKGREEN = (  0, 155,   0)
-DARKGRAY  = ( 40,  40,  40)
+#                   R    G    B
+WHITE           = (255, 255, 255)
+BLACK           = (  0,   0,   0)
+RED             = (255,   0,   0)
+GREEN           = (  0, 255,   0)
+DARKGREEN       = (  0, 155,   0)
+DARKGRAY        = ( 40,  40,  40)
+NU_PURPLE       = ( 91,  59, 140)
+LIGHT_NU_PURPLE = (204, 196, 223)
 BGCOLOR = BLACK
 
 UP = 'up'
@@ -38,7 +41,7 @@ def main():
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     BASICFONT = pygame.font.Font('freesansbold.ttf', 18)
-    pygame.display.set_caption('Wormy')
+    pygame.display.set_caption('ALASKAN BULL WORMS!!!!!')
 
     showStartScreen()
     while True:
@@ -54,9 +57,17 @@ def runGame():
                   {'x': startx - 1, 'y': starty},
                   {'x': startx - 2, 'y': starty}]
     direction = RIGHT
+    num_apples = 0
 
-    # Start the apple in a random place.
-    apple = getRandomLocation()
+    # Start each of the apples in a random place.
+    apples = []
+    while num_apples < MAXNUMAPPLES:
+        new_apple = getRandomLocation()
+        if new_apple in apples:
+            continue
+        else:
+            apples.append(new_apple)
+            num_apples += 1
 
     while True: # main game loop
         for event in pygame.event.get(): # event handling loop
@@ -81,11 +92,15 @@ def runGame():
             if wormBody['x'] == wormCoords[HEAD]['x'] and wormBody['y'] == wormCoords[HEAD]['y']:
                 return # game over
 
-        # check if worm has eaten an apply
-        if wormCoords[HEAD]['x'] == apple['x'] and wormCoords[HEAD]['y'] == apple['y']:
-            # don't remove worm's tail segment
-            apple = getRandomLocation() # set a new apple somewhere
-        else:
+        # check if worm has eaten an apple
+        apple_was_eaten = False
+        for apple in apples:
+            if wormCoords[HEAD]['x'] == apple['x'] and wormCoords[HEAD]['y'] == apple['y']:
+                # don't remove worm's tail segment
+                apples.remove(apple)
+                apples.append(getRandomLocation()) # set a new apple somewhere
+                apple_was_eaten = True
+        if not apple_was_eaten:
             del wormCoords[-1] # remove worm's tail segment
 
         # move the worm by adding a segment in the direction it is moving
@@ -101,7 +116,7 @@ def runGame():
         DISPLAYSURF.fill(BGCOLOR)
         drawGrid()
         drawWorm(wormCoords)
-        drawApple(apple)
+        drawApples(apples)
         drawScore(len(wormCoords) - 3)
         pygame.display.update()
         FPSCLOCK.tick(FPS)
@@ -126,9 +141,9 @@ def checkForKeyPress():
 
 
 def showStartScreen():
-    titleFont = pygame.font.Font('freesansbold.ttf', 100)
-    titleSurf1 = titleFont.render('Wormy!', True, WHITE, DARKGREEN)
-    titleSurf2 = titleFont.render('Wormy!', True, GREEN)
+    titleFont = pygame.font.Font('freesansbold.ttf', 67)
+    titleSurf1 = titleFont.render('ALASKAN BULL WORMS!', True, WHITE, NU_PURPLE)
+    titleSurf2 = titleFont.render('ALASKAN BULL WORMS!', True, LIGHT_NU_PURPLE)
 
     degrees1 = 0
     degrees2 = 0
@@ -202,11 +217,12 @@ def drawWorm(wormCoords):
         pygame.draw.rect(DISPLAYSURF, GREEN, wormInnerSegmentRect)
 
 
-def drawApple(coord):
-    x = coord['x'] * CELLSIZE
-    y = coord['y'] * CELLSIZE
-    appleRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
-    pygame.draw.rect(DISPLAYSURF, RED, appleRect)
+def drawApples(coords):
+    for coord in coords:
+        x = coord['x'] * CELLSIZE
+        y = coord['y'] * CELLSIZE
+        appleRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
+        pygame.draw.rect(DISPLAYSURF, RED, appleRect)
 
 
 def drawGrid():
