@@ -4,11 +4,11 @@
 # Released under a "Simplified BSD" license
 
 import random, pygame, sys
-from typing import List
+from typing import List, Dict, Union
 from collections import namedtuple
 from pygame.locals import *
 
-FPS = 15
+FPS = 4
 WINDOWWIDTH  = 640 + 320
 WINDOWHEIGHT = 480 + 240
 CELLSIZE = 20
@@ -27,6 +27,7 @@ DARKORANGE      = (181,  94,  17)
 GREEN           = (  0, 255,   0)
 DARKGREEN       = (  0, 155,   0)
 DARKGRAY        = ( 40,  40,  40)
+GRAY            = (120, 120, 120)
 NU_PURPLE       = ( 91,  59, 140)
 LIGHT_NU_PURPLE = (204, 196, 223)
 BGCOLOR = BLACK
@@ -58,10 +59,13 @@ def main():
 
 
 def runGame():
+    bullets = []
+    stones = []
     # Set a random start point
     worm_1_controls = key_directions(K_LEFT, K_RIGHT, K_UP, K_DOWN)
     worm_2_controls = key_directions(K_a, K_d, K_w, K_s)
-    worms = [Worm(GREEN, DARKGREEN, 1, worm_1_controls), Worm(ORANGE, DARKORANGE, 2, worm_2_controls)]
+    worms = [Worm(GREEN, DARKGREEN, 1, worm_1_controls, K_RCTRL),
+             Worm(ORANGE, DARKORANGE, 2, worm_2_controls, K_e)]
     num_apples = 0
 
     # Start each of the apples in a random place
@@ -83,12 +87,26 @@ def runGame():
                     worms[0].turn(event.key)
                 elif event.key in worms[1].control_keys:
                     worms[1].turn(event.key)
+                elif event.key == worms[0].shoot_key:
+                    bullets.append(worms[0].shoot())
+                elif event.key == worms[1].shoot_key:
+                    bullets.append(worms[1].shoot())
                 elif event.key == K_ESCAPE:
                     terminate()
 
-        # check if the worm has hit itself or the edge
+        # check if the worm has hit itself, the other worm, or the edge
         if worms[0].collided(worms[1]) or worms[1].collided(worms[0]):
             return  # game over
+
+        if worms[0].hit_stone(stones) or worms[1].hit_stone(stones):
+            return  # game over
+
+        for bullet in bullets:
+            for worm in worms:
+                shot_location = bullet.hit_worm(worm)
+                if shot_location:
+                    stones += worm.lose_body(shot_location)
+
         for worm in worms:
             for wormBody in worm.body[1:]:
                 if wormBody['x'] == worm.body[HEAD]['x'] and wormBody['y'] == worm.body[HEAD]['y']:
@@ -102,6 +120,7 @@ def runGame():
                     apples.append(getRandomLocation())  # set a new apple somewhere
                     apple_was_eaten = True
 
+
             if not apple_was_eaten:
                 del worm.body[-1]  # remove worm's tail segment
 
@@ -110,8 +129,15 @@ def runGame():
         DISPLAYSURF.fill(BGCOLOR)
         drawGrid()
 
+        for bullet in bullets:
+            bullet.move()
+            bullet.draw()
+
+        for stone in stones:
+            stone.draw()
+
         for worm in worms:
-            worm.draw_worm()
+            worm.draw()
             worm.draw_score()
 
         drawApples(apples)
@@ -214,8 +240,59 @@ def drawGrid():
         pygame.draw.line(DISPLAYSURF, DARKGRAY, (0, y), (WINDOWWIDTH, y))
 
 
+class Bullet:
+    def __init__(self, position, direction):
+        self.position = position
+        self.direction = direction
+
+    def move(self):
+        """Bullets move twice as fast as the worms"""
+        if self.direction == UP:
+            self.position['y'] -= 2
+        elif self.direction == DOWN:
+            self.position['y'] += 2
+        elif self.direction == LEFT:
+            self.position['x'] -= 2
+        elif self.direction == RIGHT:
+            self.position['x'] += 2
+
+    def hit_worm(self, worm) -> Union[None, Dict[str, int]]:
+        """Checks whether it has hit the given worm
+
+        :returns: The position where the worm was hit
+        """
+        for body_segment in worm.body:
+            if self.position == body_segment:
+                return self.position  # worm has been hit
+        return None
+
+    def draw(self):
+        x = self.position['x'] * CELLSIZE
+        y = self.position['y'] * CELLSIZE
+        bullet_rect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
+        pygame.draw.rect(DISPLAYSURF, NU_PURPLE, bullet_rect)
+        bullet_inner_rect = pygame.Rect(x + 4, y + 4, CELLSIZE - 8, CELLSIZE - 8)
+        pygame.draw.rect(DISPLAYSURF, LIGHT_NU_PURPLE, bullet_inner_rect)
+
+
+class Stone:
+    def __init__(self, stone_position):
+        self.stone_position = stone_position
+
+    def draw(self):
+        # for coord in self.stone_position:
+        x = self.stone_position['x'] * CELLSIZE
+        y = self.stone_position['y'] * CELLSIZE
+        stone_rect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
+        pygame.draw.rect(DISPLAYSURF, DARKGRAY, stone_rect)
+        stone_inner_rect = pygame.Rect(x + 4, y + 4, CELLSIZE - 8, CELLSIZE - 8)
+        pygame.draw.rect(DISPLAYSURF, GRAY, stone_inner_rect)
+
+    def get_position(self):
+        return self.stone_position
+
 class Worm:
-    def __init__(self, worm_body_color, worm_outline_color, worm_scoreboard_pos, control_keys: List):
+    def __init__(self, worm_body_color, worm_outline_color, worm_scoreboard_pos, control_keys: List, shoot_key):
         startx = random.randint(5, CELLWIDTH - 6)
         starty = random.randint(5, CELLHEIGHT - 6)
         self.body = [{'x': startx,     'y': starty},
@@ -227,6 +304,7 @@ class Worm:
         self.outline_color = worm_outline_color
         self.scoreboard_pos = worm_scoreboard_pos
         self.control_keys = control_keys
+        self.shoot_key = shoot_key
 
     def collided(self, other_worm):
         # See if worm collided with itself or the edge of the map
@@ -261,7 +339,7 @@ class Worm:
 
         self.body.insert(0, newHead)
 
-    def draw_worm(self):
+    def draw(self):
         for coord in self.body:
             x = coord['x'] * CELLSIZE
             y = coord['y'] * CELLSIZE
@@ -275,6 +353,40 @@ class Worm:
         scoreRect = scoreSurf.get_rect()
         scoreRect.topleft = (WINDOWWIDTH - self.scoreboard_pos * 120, 10)
         DISPLAYSURF.blit(scoreSurf, scoreRect)
+
+    def lose_body(self, position):
+        """If the worm is hit by a bullet, the posterior portion of its body, beginning with where the worm was hit,
+        is lost, and it falls off and becomes an obstacle
+        """
+        segments_to_lose = []
+        remaining_segments_lost = False
+        for body_segment in self.body:
+            if remaining_segments_lost:
+                segments_to_lose.append(body_segment)
+            elif body_segment == position:
+                remaining_segments_lost = True
+
+        # We still need to actually cut off the remaining segments
+        [self.body.remove(body_segment) for body_segment in segments_to_lose]
+        return [Stone(segment) for segment in segments_to_lose]
+
+    def shoot(self):
+        if self.direction == UP:
+            bullet_initial_position = {'x': self.body[HEAD]['x'], 'y': self.body[HEAD]['y'] - 1}
+        elif self.direction == DOWN:
+            bullet_initial_position = {'x': self.body[HEAD]['x'], 'y': self.body[HEAD]['y'] + 1}
+        elif self.direction == LEFT:
+            bullet_initial_position = {'x': self.body[HEAD]['x'] - 1, 'y': self.body[HEAD]['y']}
+        elif self.direction == RIGHT:
+            bullet_initial_position = {'x': self.body[HEAD]['x'] + 1, 'y': self.body[HEAD]['y']}
+
+        return Bullet(bullet_initial_position, self.direction)
+
+    def hit_stone(self, stones):
+        stone_positions = [stone.get_position() for stone in stones]
+        for body_segment in self.body:
+            if body_segment in stone_positions:
+                return True
 
 
 if __name__ == '__main__':
