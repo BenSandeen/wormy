@@ -5,6 +5,8 @@
 
 import random, pygame, sys
 from typing import List, Dict, Union
+from itertools import combinations
+from copy import deepcopy
 from collections import namedtuple
 from pygame.locals import *
 
@@ -94,18 +96,31 @@ def runGame():
                 elif event.key == K_ESCAPE:
                     terminate()
 
-        # check if the worm has hit itself, the other worm, or the edge
-        if worms[0].collided(worms[1]) or worms[1].collided(worms[0]):
-            return  # game over
+        # `itertools.combinations(worms, 2)` gives all pairwise combinations of worms, so that if we have more than two
+        # worms, we can still check for collisions between all of them
+        for worm_a, worm_b in combinations(worms, 2):
+            # check if the worm has hit itself, the other worm, or the edge
+            if worm_a.collided(worm_b) or worm_b.collided(worm_a):
+                return  # game over
 
-        if worms[0].hit_stone(stones) or worms[1].hit_stone(stones):
-            return  # game over
+        for worm in worms:
+            if worm.hit_stone(stones):
+                return  # game over
 
+        bullets_hit = []
         for bullet in bullets:
             for worm in worms:
                 shot_location = bullet.hit_worm(worm)
                 if shot_location:
+                    if shot_location == worm.get_head_pos():
+                        return  # Headshot means game over!
                     stones += worm.lose_body(shot_location)
+                    bullets_hit.append(bullet)
+
+        # Remove the bullets that landed a shot and then have four new bullets explode from the location of the hit
+        for bullet in bullets_hit:
+            bullets.remove(bullet)
+            bullets += bullet.explode()
 
         for worm in worms:
             for wormBody in worm.body[1:]:
@@ -120,7 +135,6 @@ def runGame():
                     apples.append(getRandomLocation())  # set a new apple somewhere
                     apple_was_eaten = True
 
-
             if not apple_was_eaten:
                 del worm.body[-1]  # remove worm's tail segment
 
@@ -129,8 +143,16 @@ def runGame():
         DISPLAYSURF.fill(BGCOLOR)
         drawGrid()
 
+        bullets_left_map = []
         for bullet in bullets:
             bullet.move()
+            if bullet.left_map():
+                bullets_left_map.append(bullet)
+
+        for bullet in bullets_left_map:
+            bullets.remove(bullet)
+
+        for bullet in bullets:
             bullet.draw()
 
         for stone in stones:
@@ -143,6 +165,7 @@ def runGame():
         drawApples(apples)
         pygame.display.update()
         FPSCLOCK.tick(FPS)
+
 
 def drawPressKeyMsg():
     pressKeySurf = BASICFONT.render('Press a key to play.', True, DARKGRAY)
@@ -266,6 +289,36 @@ class Bullet:
                 return self.position  # worm has been hit
         return None
 
+    def explode(self) -> List['Bullet']:
+        """When bullets land a hit on a worm, they explode, sending out two new bullets, one forward (in the same
+        direction as the bullet) and one backward
+
+        :return: 2 new bullets
+        """
+        opposite_direction = None
+        if self.direction == UP:
+            opposite_direction = DOWN
+        elif self.direction == DOWN:
+            opposite_direction = UP
+        elif self.direction == LEFT:
+            opposite_direction = RIGHT
+        elif self.direction == RIGHT:
+            opposite_direction = LEFT
+
+        # We need to deep copy these otherwise they'll both be referring to the same underlying positions
+        return [Bullet(deepcopy(self.position), deepcopy(self.direction)),
+                Bullet(deepcopy(self.position), deepcopy(opposite_direction))]
+
+    def left_map(self) -> bool:
+        """Checks whether the bullet has run off the edge of the map
+
+        :return: True if the bullet is off the map, False otherwise
+        """
+        if self.position['x'] <= -1 or self.position['x'] >= CELLWIDTH or \
+                self.position['y'] <= -1 or self.position['y'] >= CELLHEIGHT:
+            return True
+        return False
+
     def draw(self):
         x = self.position['x'] * CELLSIZE
         y = self.position['y'] * CELLSIZE
@@ -388,6 +441,8 @@ class Worm:
             if body_segment in stone_positions:
                 return True
 
+    def get_head_pos(self):
+        return self.body[HEAD]
 
 if __name__ == '__main__':
     main()
