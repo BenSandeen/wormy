@@ -4,7 +4,6 @@
 # Released under a "Simplified BSD" license
 
 import random, pygame, sys
-from typing import List, Dict, Union
 from itertools import combinations
 from copy import deepcopy
 from collections import namedtuple
@@ -279,7 +278,7 @@ class Bullet:
         elif self.direction == RIGHT:
             self.position['x'] += 2
 
-    def hit_worm(self, worm) -> Union[None, Dict[str, int]]:
+    def hit_worm(self, worm):
         """Checks whether it has hit the given worm
 
         :returns: The position where the worm was hit
@@ -289,7 +288,7 @@ class Bullet:
                 return self.position  # worm has been hit
         return None
 
-    def explode(self) -> List['Bullet']:
+    def explode(self):
         """When bullets land a hit on a worm, they explode, sending out two new bullets, one forward (in the same
         direction as the bullet) and one backward
 
@@ -309,7 +308,7 @@ class Bullet:
         return [Bullet(deepcopy(self.position), deepcopy(self.direction)),
                 Bullet(deepcopy(self.position), deepcopy(opposite_direction))]
 
-    def left_map(self) -> bool:
+    def left_map(self):
         """Checks whether the bullet has run off the edge of the map
 
         :return: True if the bullet is off the map, False otherwise
@@ -345,7 +344,7 @@ class Stone:
         return self.stone_position
 
 class Worm:
-    def __init__(self, worm_body_color, worm_outline_color, worm_scoreboard_pos, control_keys: List, shoot_key):
+    def __init__(self, worm_body_color, worm_outline_color, worm_scoreboard_pos, control_keys, shoot_key):
         startx = random.randint(5, CELLWIDTH - 6)
         starty = random.randint(5, CELLHEIGHT - 6)
         self.body = [{'x': startx,     'y': starty},
@@ -443,6 +442,7 @@ class Worm:
 
     def get_head_pos(self):
         return self.body[HEAD]
+
 
 if __name__ == '__main__':
     main()
