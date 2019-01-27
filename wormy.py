@@ -10,7 +10,7 @@ from copy import deepcopy
 from collections import namedtuple
 from pygame.locals import *
 
-FPS = 4
+FPS = 15
 WINDOWWIDTH  = 640 + 320
 WINDOWHEIGHT = 480 + 240
 CELLSIZE = 20
@@ -66,7 +66,7 @@ def runGame():
     # Set a random start point
     worm_1_controls = key_directions(K_LEFT, K_RIGHT, K_UP, K_DOWN)
     worm_2_controls = key_directions(K_a, K_d, K_w, K_s)
-    worms = [Worm(GREEN, DARKGREEN, 1, worm_1_controls, K_RCTRL),
+    worms = [Worm(GREEN, DARKGREEN, 1, worm_1_controls, K_RSHIFT),
              Worm(ORANGE, DARKORANGE, 2, worm_2_controls, K_e)]
     num_apples = 0
 
