@@ -186,8 +186,8 @@ def checkForKeyPress():
 
 
 def showStartScreen():
-    # titleFont = pygame.font.Font('freesansbold.ttf', 67)
-    titleFont = pygame.font.Font('C:\Windows\Fonts\HARRP__.ttf', 67)
+    titleFont = pygame.font.Font('freesansbold.ttf', 67)
+    # titleFont = pygame.font.Font('C:\Windows\Fonts\HARRP__.ttf', 67)
     titleSurf1 = titleFont.render('ALASKAN BULL WORMS!', True, WHITE, NU_PURPLE)
     titleSurf2 = titleFont.render('ALASKAN BULL WORMS!', True, LIGHT_NU_PURPLE)
 
